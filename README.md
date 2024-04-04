@@ -1,6 +1,3 @@
-# My React App
-
-This is a sample React application created using `create-react-app`.
 
 ## Getting Started
 
