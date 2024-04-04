@@ -1,0 +1,21 @@
+// Colors
+$primary-color: #007bff;
+$secondary-color: #6c757d;
+$background-color: #f8f9fa;
+
+// Fonts
+$primary-font: 'Arial', sans-serif;
+$heading-font-size: 24px;
+
+// Flexbox mixin
+@mixin flexbox {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+// Text style mixin
+@mixin text-style {
+  font-family: $primary-font;
+  color: $secondary-color;
+}

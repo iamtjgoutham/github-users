@@ -1,0 +1,54 @@
+// Import global styles
+@import '../../global-styles.scss';
+
+
+.user-list-container {
+  @include flexbox;
+  flex-direction: column;
+  width: 50%;
+  margin: 0 auto;
+}
+
+.avatar {
+  margin-right: 10px; 
+  vertical-align: middle; 
+}
+
+.avatar img {
+  width: 50px; 
+  height: 50px;
+  border-radius: 50%;
+  vertical-align: middle;
+}
+
+.login {
+  padding-left: 10px;
+  vertical-align: middle;
+  @include text-style;
+}
+
+.user-table {
+  background-color: $background-color;
+  font-family: $primary-font;
+}
+
+.user-table th,
+.user-table td {
+  background-color: #ffffff;
+  padding: 10px;
+}
+
+.search-bar {
+  display: flex;
+  align-items: center;
+  padding: 2px 4px;
+  margin-bottom: 16px;
+}
+
+.search-icon {
+  padding: 10px;
+}
+
+.search-input {
+  flex: 1;
+}
