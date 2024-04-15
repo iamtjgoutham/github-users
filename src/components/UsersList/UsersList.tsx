@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import TableContainer from '@mui/material/TableContainer';
 import Table from '@mui/material/Table';
 import TableHead from '@mui/material/TableHead';
@@ -13,7 +14,6 @@ import { debounce } from 'lodash';
 
 import UserDetailsDrawer from '../UserDetails';
 import { get } from '../../api/http';
-
 import './userList.scss';
 
 interface User {
@@ -29,26 +29,49 @@ const UserList: React.FC = () => {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
-  const [searchInput, setSearchInput] = useState<string>('');
+  const [totalCount, setTotalCount] = useState(1000);
 
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const searchQuery = searchParams.get('search') || '';
+  const locationQuery = searchParams.get('loc') || '';
+
+  const [searchInput, setSearchInput] = useState({ userName: searchQuery, location: locationQuery });
 
   useEffect(() => {
-    const fetchUsers = async (searchTerm: string) => {
+    setSearchInput({ userName: searchQuery, location: locationQuery });
+  }, [searchQuery, locationQuery]);
+
+  useEffect(() => {
+    const fetchUsers = async () => {
       try {
-        const base_qs = `since=${page * rowsPerPage}&per_page=${rowsPerPage}`;
-        const qs = searchTerm.length > 0 ? `/search/users?${base_qs}&q=${searchTerm}` : `/users?${base_qs}`;
+        let queryValue = '';
+        if (searchInput.userName.trim() !== '' && searchInput.location.trim() !== '') {
+          queryValue = `q=${searchInput.userName}+location:${searchInput.location}`;
+        } else if (searchInput.userName.trim() !== '') {
+          queryValue = `q=${searchInput.userName}`;
+        } else if (searchInput.location.trim() !== '') {
+          queryValue = `q=location:${searchInput.location}`;
+        }
+
+        const pageQueryParam = `page=${page + 1}`; // Add 1 because page numbers are 1-based
+        const perPageQueryParam = `per_page=${rowsPerPage}`;
+        const queryString = `?${pageQueryParam}&${perPageQueryParam}`;
+
+        const qs = queryValue !== '' ? `/search/users${queryString}&${queryValue}` : `/users${queryString}`;
         const response = await get(qs);
-        setUsers(searchTerm.length > 0 ? response.items : response);
+        setUsers(queryValue !== '' ? response.items : response);
+        setTotalCount(response.total_count || 1000)
       } catch (error) {
         console.error('Error fetching users:', error);
       }
     };
 
-    const handleSearch = debounce((searchTerm: string) => {
-      fetchUsers(searchTerm);
+    const handleSearch = debounce(() => {
+      fetchUsers();
     }, 500);
 
-    handleSearch(searchInput);
+    handleSearch();
 
     return () => handleSearch.cancel();
   }, [searchInput, page, rowsPerPage]);
@@ -74,21 +97,57 @@ const UserList: React.FC = () => {
     setSelectedUser(null);
   }, []);
 
-  const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchInput(event.target.value);
-  };
+  const handleSearchChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const { id, value } = event.target;
+      const newSearchParams = new URLSearchParams(searchParams);
+
+      if (id === 'userName') {
+        setSearchInput((prevSearchInput) => ({ ...prevSearchInput, userName: value }));
+        if (value.trim() !== '') {
+          newSearchParams.set('search', value);
+        } else {
+          newSearchParams.delete('search');
+        }
+      } else if (id === 'loc') {
+        setSearchInput((prevSearchInput) => ({ ...prevSearchInput, location: value }));
+        if (value.trim() !== '') {
+          newSearchParams.set('loc', value);
+        } else {
+          newSearchParams.delete('loc');
+        }
+      }
+
+      setSearchParams(newSearchParams);
+      setPage(0);
+    },
+    [searchParams, setSearchParams]
+  );
 
   return (
     <div className="user-list-container">
       <h1>Github Users</h1>
       <Paper component="form" className="search-bar">
-        <SearchIcon className="search-icon" />
-        <InputBase
-          placeholder="Search by username"
-          value={searchInput}
-          onChange={handleSearchChange}
-          className="search-input"
-        />
+        <div className="search-input-container">
+          <SearchIcon className="search-icon" />
+          <InputBase
+            id="userName"
+            placeholder="Search by username"
+            value={searchInput.userName}
+            onChange={handleSearchChange}
+            className="search-input"
+          />
+        </div>
+        <div className="search-input-container">
+          <SearchIcon className="search-icon" />
+          <InputBase
+            id="loc"
+            placeholder="Search by location"
+            value={searchInput.location}
+            onChange={handleSearchChange}
+            className="search-input"
+          />
+        </div>
       </Paper>
       <TableContainer component={Paper} className="user-table">
         <Table>
@@ -103,13 +162,13 @@ const UserList: React.FC = () => {
             {filteredUsers?.map((user, index) => (
               <TableRow key={user.id} onClick={() => handleClick(user)}>
                 <TableCell align="center">{(page * rowsPerPage) + (index + 1)}</TableCell>
-                  <TableCell align="left" className='avatar'>
-                    <img src={user.avatar_url} alt={user.login} />
-                    <span className="login">{user.login}</span>
-                  </TableCell>
-                  <TableCell align="center">
-                    <a href={user.html_url} rel="noreferrer" target="_blank">{user.html_url}</a>
-                  </TableCell>
+                <TableCell align="left" className='avatar'>
+                  <img src={user.avatar_url} alt={user.login} />
+                  <span className="login">{user.login}</span>
+                </TableCell>
+                <TableCell align="center">
+                  <a href={user.html_url} rel="noreferrer" target="_blank">{user.html_url}</a>
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -118,7 +177,7 @@ const UserList: React.FC = () => {
       <TablePagination
         rowsPerPageOptions={[5, 10, 25]}
         component="div"
-        count={1000}
+        count={totalCount}
         rowsPerPage={rowsPerPage}
         page={page}
         onPageChange={handleChangePage}
